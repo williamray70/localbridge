@@ -4,25 +4,9 @@
  *  File: OutboundRuntime.java
  * -----------------------------------------------------------------------------
  *  Purpose:
- *      Singleton runtime responsible for managing outbound sender channels.
- *      Reads configuration YAMLs under:
- *          conf/channels/Outbound/
- *
- *      Responsibilities:
- *        • Load outbound channel configurations.
- *        • Start enabled outbound sender threads.
- *        • Stop all running senders cleanly.
- *        • Provide runtime status to the GUI.
- *
- *  Notes:
- *      Mirrors InboundRuntime for GUI compatibility.
- *      Uses SLF4J logging and safe concurrent collections.
- *
- *  Author : William Ray / LocalBridge Health
- *  Version: 1.7.3 – October 2025
+ *      Manage outbound sender channels with per-channel counters.
  * =============================================================================
  */
-
 package com.localbridge.outbound;
 
 import org.slf4j.Logger;
@@ -33,43 +17,27 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Runtime controller for outbound MLLP sender channels.
- * Each outbound channel monitors a directory and sends messages
- * to remote endpoints defined in its YAML configuration.
- */
 public final class OutboundRuntime {
-
-    // -------------------------------------------------------------------------
-    // Singleton
-    // -------------------------------------------------------------------------
     private static final Logger log = LoggerFactory.getLogger(OutboundRuntime.class);
     private static final OutboundRuntime INSTANCE = new OutboundRuntime();
-
     public static OutboundRuntime get() { return INSTANCE; }
 
-    // -------------------------------------------------------------------------
-    // State
-    // -------------------------------------------------------------------------
+    private final Map<String, OutboundChannelConfig> configsByName = new ConcurrentHashMap<>();
     private final Map<String, OutboundSenderChannel> runningChannels = new ConcurrentHashMap<>();
 
     private OutboundRuntime() {
         log.info("[Outbound] Runtime initialized.");
     }
 
-    // -------------------------------------------------------------------------
-    // Lifecycle
-    // -------------------------------------------------------------------------
-
-    /**
-     * Load outbound YAML configurations and start enabled sender channels.
-     * @param channelsRoot Path to conf/channels directory.
-     */
     public synchronized void loadAndStart(Path channelsRoot) throws IOException {
         stopAll();
 
         OutboundYamlLoader loader = new OutboundYamlLoader();
         var configs = loader.loadFromDirectory(channelsRoot);
+        configsByName.clear();
+        for (OutboundChannelConfig c : configs) {
+            configsByName.put(c.getName(), c);
+        }
 
         if (configs.isEmpty()) {
             log.info("[Outbound] No outbound channels found under {}",
@@ -82,14 +50,7 @@ public final class OutboundRuntime {
                 log.info("[Outbound] Skipping disabled channel {}", cfg.getName());
                 continue;
             }
-            try {
-                OutboundSenderChannel sender = new OutboundSenderChannel(cfg);
-                sender.start();
-                runningChannels.put(cfg.getName(), sender);
-                log.info("[Outbound] Started {}", cfg.getName());
-            } catch (Exception e) {
-                log.error("[Outbound] Failed to start {}: {}", cfg.getName(), e.getMessage(), e);
-            }
+            startChannel(cfg.getName());
         }
 
         if (runningChannels.isEmpty()) {
@@ -100,43 +61,47 @@ public final class OutboundRuntime {
         }
     }
 
-    /**
-     * Stop all running outbound senders.
-     */
-    public synchronized void stopAll() {
-        if (runningChannels.isEmpty()) {
-            log.info("[Outbound] No senders to stop.");
-            return;
-        }
-        for (OutboundSenderChannel ch : runningChannels.values()) {
+    public synchronized void startChannel(String name) throws IOException {
+        if (runningChannels.containsKey(name)) return;
+        OutboundChannelConfig cfg = configsByName.get(name);
+        if (cfg == null) throw new IOException("Outbound config not found: " + name);
+        OutboundSenderChannel sender = new OutboundSenderChannel(cfg);
+        sender.start();
+        runningChannels.put(name, sender);
+        log.info("[Outbound] Started {}", name);
+    }
+
+    public synchronized void stopChannel(String name) {
+        OutboundSenderChannel ch = runningChannels.remove(name);
+        if (ch != null) {
             try {
                 ch.close();
-                log.info("[Outbound] Stopped {}", ch.getConfig() != null ? ch.getConfig().toString() : "<unknown>");
+                log.info("[Outbound] Stopped {}", name);
             } catch (Exception e) {
-                log.error("[Outbound] Error stopping sender: {}", e.getMessage());
+                log.error("[Outbound] Error stopping {}: {}", name, e.getMessage());
             }
+        }
+    }
+
+    public synchronized void stopAll() {
+        for (OutboundSenderChannel ch : runningChannels.values()) {
+            try { ch.close(); } catch (Exception ignore) {}
         }
         runningChannels.clear();
         log.info("[Outbound] All outbound senders stopped.");
     }
 
-    // -------------------------------------------------------------------------
-    // Introspection
-    // -------------------------------------------------------------------------
-
-    /**
-     * Returns the names of all currently running outbound channels
-     * as a List<String> for GUI compatibility.
-     */
-    public synchronized List<String> getRunningNames() {
-        return new ArrayList<>(runningChannels.keySet());
+    // GUI helpers
+    public synchronized List<String> getRunningNames() { return new ArrayList<>(runningChannels.keySet()); }
+    public synchronized boolean isRunning(String name) { return runningChannels.containsKey(name); }
+    public synchronized List<String> getAllNames() { return new ArrayList<>(configsByName.keySet()); }
+    public synchronized int getProcessed(String name) {
+        OutboundSenderChannel ch = runningChannels.get(name);
+        return ch == null ? 0 : ch.getProcessedCount();
     }
-
-    /**
-     * Returns the number of currently active outbound sender channels.
-     */
-    public synchronized int getRunningCount() {
-        return runningChannels.size();
+    public synchronized int getErrors(String name) {
+        OutboundSenderChannel ch = runningChannels.get(name);
+        return ch == null ? 0 : ch.getErrorCount();
     }
 
     @Override

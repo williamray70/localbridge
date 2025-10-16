@@ -1,5 +1,6 @@
 com/localbridge/transformer/wrapi/SetCommand.class
 com/localbridge/engine/ChannelEngine.class
+com/localbridge/gui/LocalBridgeGUI$2.class
 com/localbridge/inbound/InboundChannelConfig.class
 com/localbridge/transformer/wrapi/WrapiScriptTransformer.class
 com/localbridge/gui/ChannelEditorTab$1.class
@@ -29,6 +30,7 @@ com/localbridge/gui/LocalBridgeGUI$1.class
 com/localbridge/gui/LocalBridgeGUI.class
 com/localbridge/gui/LocalBridgeGUI$ChannelRow.class
 com/localbridge/inbound/MllpInboundChannel.class
+com/localbridge/gui/LocalBridgeGUI$IOChannelRow.class
 com/localbridge/transformer/wrapi/TruncCommand.class
 com/localbridge/LocalBridgeApplication.class
 com/localbridge/inbound/InboundRuntime.class

@@ -4,18 +4,16 @@
  *  File: LocalBridgeGUI.java
  * -----------------------------------------------------------------------------
  *  Purpose:
- *      JavaFX admin console with per-channel Start/Stop controls restored.
- *      Loads translate (file-to-file) channels via ChannelEngineFactory to
- *      support structured YAML (e.g., transformer: { type: wrapi, script: ... }).
- *      Inbound/Outbound listeners are managed by their runtimes.
+ *      JavaFX admin console with:
+ *        1) Translate Channels table (file↔file) with Start/Stop.
+ *        2) Inbound/Outbound Channels table (MLLP listeners/senders) with
+ *           Start/Stop + Processed + Errors.
  *
- *  Notes:
- *      - No Lombok. Standard java.util.logging.
- *      - Operations tab shows translate channels. Inbound/Outbound are started
- *        and summarized in the log area.
+ *      Translate channels load via ChannelEngineFactory (supports structured YAML).
+ *      Inbound/Outbound managed by their runtimes.
  *
  *  Author : LocalBridge Health
- *  Version: 1.7.4 – October 2025
+ *  Version: 1.8.2 – October 2025
  * =============================================================================
  */
 package com.localbridge.gui;
@@ -41,10 +39,6 @@ import com.localbridge.engine.ChannelEngineFactory;
 import com.localbridge.inbound.InboundRuntime;
 import com.localbridge.outbound.OutboundRuntime;
 
-import org.yaml.snakeyaml.Yaml;
-
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -56,10 +50,16 @@ import java.util.logging.Logger;
 public class LocalBridgeGUI extends Application {
     private static final Logger log = Logger.getLogger(LocalBridgeGUI.class.getName());
 
+    // Translate channels
     private final Map<String, ChannelEngine> channels = new HashMap<>();
     private final ObservableList<ChannelRow> channelData = FXCollections.observableArrayList();
 
+    // Inbound/Outbound table data
+    private final ObservableList<IOChannelRow> ioData = FXCollections.observableArrayList();
+
     private TableView<ChannelRow> channelTable;
+    private TableView<IOChannelRow> ioTable;
+
     private TextArea logArea;
     private Label statusLabel;
     private ScheduledExecutorService statsUpdater;
@@ -81,7 +81,7 @@ public class LocalBridgeGUI extends Application {
 
         root.setBottom(createBottomPanel());
 
-        Scene scene = new Scene(root, 1200, 700);
+        Scene scene = new Scene(root, 1200, 860);
         primaryStage.setScene(scene);
         primaryStage.show();
 
@@ -90,6 +90,8 @@ public class LocalBridgeGUI extends Application {
 
         primaryStage.setOnCloseRequest(e -> {
             stopAllChannels();
+            InboundRuntime.get().stopAll();
+            OutboundRuntime.get().stopAll();
             Platform.exit();
         });
 
@@ -98,10 +100,17 @@ public class LocalBridgeGUI extends Application {
 
     private Tab buildOperationsTab() {
         Tab t = new Tab("Operations");
+
         ToolBar opsToolbar = createOpsToolbar();
-        Node table = createChannelTable();
-        VBox content = new VBox(8, opsToolbar, table);
-        VBox.setVgrow(table, Priority.ALWAYS);
+        Node translateTable = createChannelTable();
+
+        Label ioLabel = new Label("Inbound / Outbound Channels");
+        ioLabel.setStyle("-fx-font-weight: bold; -fx-padding: 8 0 0 0;");
+        Node ioTableNode = createIOTable();
+
+        VBox content = new VBox(8, opsToolbar, translateTable, ioLabel, ioTableNode);
+        VBox.setVgrow(translateTable, Priority.ALWAYS);
+        VBox.setVgrow(ioTableNode, Priority.ALWAYS);
         content.setPadding(new Insets(4, 0, 0, 0));
         t.setContent(content);
         return t;
@@ -119,9 +128,20 @@ public class LocalBridgeGUI extends Application {
         Button refreshBtn  = new Button("Refresh");
         Button reloadBtn   = new Button("Reload Configs");
 
-        startAllBtn.setOnAction(e -> startAllChannels());
-        stopAllBtn.setOnAction(e  -> stopAllChannels());
-        refreshBtn.setOnAction(e  -> refreshChannels());
+        startAllBtn.setOnAction(e -> {
+            startAllChannels();
+            refreshIOChannels();
+        });
+        stopAllBtn.setOnAction(e  -> {
+            stopAllChannels();
+            InboundRuntime.get().stopAll();
+            OutboundRuntime.get().stopAll();
+            refreshIOChannels();
+        });
+        refreshBtn.setOnAction(e  -> {
+            refreshChannels();
+            refreshIOChannels();
+        });
         reloadBtn.setOnAction(e   -> reloadConfigs());
 
         Region spacer = new Region();
@@ -134,6 +154,8 @@ public class LocalBridgeGUI extends Application {
                 refreshBtn, reloadBtn, spacer, statusLabel
         );
     }
+
+    // ========= Translate Table =========
 
     private Node createChannelTable() {
         channelTable = new TableView<>();
@@ -170,7 +192,7 @@ public class LocalBridgeGUI extends Application {
 
         TableColumn<ChannelRow, Void> actionsCol = new TableColumn<>("Actions");
         actionsCol.setPrefWidth(180);
-        actionsCol.setCellFactory(makeActionsCellFactory());
+        actionsCol.setCellFactory(makeTranslateActionsCellFactory());
 
         channelTable.getColumns().addAll(
                 nameCol, statusCol, typeCol, processedCol, errorsCol,
@@ -179,12 +201,11 @@ public class LocalBridgeGUI extends Application {
         return channelTable;
     }
 
-    private Callback<TableColumn<ChannelRow, Void>, TableCell<ChannelRow, Void>> makeActionsCellFactory() {
+    private Callback<TableColumn<ChannelRow, Void>, TableCell<ChannelRow, Void>> makeTranslateActionsCellFactory() {
         return param -> new TableCell<>() {
             private final Button startBtn = new Button("Start");
             private final Button stopBtn  = new Button("Stop");
             private final HBox box = new HBox(6, startBtn, stopBtn);
-
             {
                 box.setAlignment(Pos.CENTER_LEFT);
                 startBtn.setOnAction(e -> {
@@ -196,14 +217,10 @@ public class LocalBridgeGUI extends Application {
                     if (row != null) stopChannel(row.getName());
                 });
             }
-
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty || getIndex() < 0 || getIndex() >= channelData.size()) {
-                    setGraphic(null);
-                    return;
-                }
+                if (empty || getIndex() < 0 || getIndex() >= channelData.size()) { setGraphic(null); return; }
                 ChannelRow r = channelData.get(getIndex());
                 boolean disabled = "DISABLED".equals(r.getStatus());
                 startBtn.setDisable(disabled || "RUNNING".equals(r.getStatus()));
@@ -212,6 +229,101 @@ public class LocalBridgeGUI extends Application {
             }
         };
     }
+
+    // ========= Inbound/Outbound Table =========
+
+    private Node createIOTable() {
+        ioTable = new TableView<>();
+        ioTable.setItems(ioData);
+        ioTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+
+        TableColumn<IOChannelRow, String> dirCol = new TableColumn<>("Direction");
+        dirCol.setCellValueFactory(new PropertyValueFactory<>("direction"));
+        dirCol.setPrefWidth(110);
+
+        TableColumn<IOChannelRow, String> nameCol = new TableColumn<>("Name");
+        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+        nameCol.setPrefWidth(260);
+
+        TableColumn<IOChannelRow, String> statusCol = new TableColumn<>("Status");
+        statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
+        statusCol.setPrefWidth(100);
+
+        TableColumn<IOChannelRow, String> processedCol = new TableColumn<>("Processed");
+        processedCol.setCellValueFactory(new PropertyValueFactory<>("processed"));
+        processedCol.setPrefWidth(110);
+
+        TableColumn<IOChannelRow, String> errorsCol = new TableColumn<>("Errors");
+        errorsCol.setCellValueFactory(new PropertyValueFactory<>("errors"));
+        errorsCol.setPrefWidth(90);
+
+        TableColumn<IOChannelRow, Void> actionsCol = new TableColumn<>("Actions");
+        actionsCol.setPrefWidth(180);
+        actionsCol.setCellFactory(makeIOActionsCellFactory());
+
+        ioTable.getColumns().addAll(dirCol, nameCol, statusCol, processedCol, errorsCol, actionsCol);
+        return ioTable;
+    }
+
+    private Callback<TableColumn<IOChannelRow, Void>, TableCell<IOChannelRow, Void>> makeIOActionsCellFactory() {
+        return param -> new TableCell<>() {
+            private final Button startBtn = new Button("Start");
+            private final Button stopBtn  = new Button("Stop");
+            private final HBox box = new HBox(6, startBtn, stopBtn);
+            {
+                box.setAlignment(Pos.CENTER_LEFT);
+                startBtn.setOnAction(e -> {
+                    IOChannelRow row = getTableView().getItems().get(getIndex());
+                    if (row == null) return;
+                    startIOChannel(row);
+                    refreshIOChannels();
+                });
+                stopBtn.setOnAction(e -> {
+                    IOChannelRow row = getTableView().getItems().get(getIndex());
+                    if (row == null) return;
+                    stopIOChannel(row);
+                    refreshIOChannels();
+                });
+            }
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || getIndex() < 0 || getIndex() >= ioData.size()) { setGraphic(null); return; }
+                IOChannelRow r = ioData.get(getIndex());
+                startBtn.setDisable("RUNNING".equals(r.getStatus()));
+                stopBtn.setDisable("STOPPED".equals(r.getStatus()));
+                setGraphic(box);
+            }
+        };
+    }
+
+    private void startIOChannel(IOChannelRow row) {
+        try {
+            if ("INBOUND".equals(row.getDirection())) {
+                InboundRuntime.get().startChannel(row.getName());
+            } else {
+                OutboundRuntime.get().startChannel(row.getName());
+            }
+            appendLog("Started " + row.getDirection().toLowerCase() + ": " + row.getName());
+        } catch (Exception e) {
+            appendLog("ERROR: Failed to start " + row.getDirection().toLowerCase() + " " + row.getName() + " - " + e.getMessage());
+        }
+    }
+
+    private void stopIOChannel(IOChannelRow row) {
+        try {
+            if ("INBOUND".equals(row.getDirection())) {
+                InboundRuntime.get().stopChannel(row.getName());
+            } else {
+                OutboundRuntime.get().stopChannel(row.getName());
+            }
+            appendLog("Stopped " + row.getDirection().toLowerCase() + ": " + row.getName());
+        } catch (Exception e) {
+            appendLog("ERROR: Failed to stop " + row.getDirection().toLowerCase() + " " + row.getName() + " - " + e.getMessage());
+        }
+    }
+
+    // ========= Bottom Panel =========
 
     private Node createBottomPanel() {
         VBox bottomPanel = new VBox(5);
@@ -226,9 +338,8 @@ public class LocalBridgeGUI extends Application {
         return bottomPanel;
     }
 
-    // =========================================================================
-    // Loading translate channels (root *.yaml only — not Inbound/Outbound)
-    // =========================================================================
+    // ========= Translate Loading =========
+
     private void loadChannels() {
         try {
             Path configDir = Paths.get("conf/channels");
@@ -240,7 +351,6 @@ public class LocalBridgeGUI extends Application {
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(configDir, "*.yaml")) {
                 for (Path yaml : stream) {
                     try {
-                        // Use the factory to handle structured YAML safely
                         ChannelConfig cfg = ChannelEngineFactory.loadConfig(yaml);
 
                         if (cfg.isEnabled()) {
@@ -283,7 +393,7 @@ public class LocalBridgeGUI extends Application {
         return v == null ? dflt : v.toUpperCase();
     }
 
-    // =========================================================================
+    // ========= Translate Start/Stop/Refresh =========
 
     private void startChannel(String name) {
         ChannelEngine engine = channels.get(name);
@@ -319,25 +429,29 @@ public class LocalBridgeGUI extends Application {
                 .forEach(r -> stopChannel(r.getName()));
     }
 
+    // ========= Reload/Refresh =========
+
     private void reloadConfigs() {
         stopAllChannels();
+        InboundRuntime.get().stopAll();
+        OutboundRuntime.get().stopAll();
+
         channels.clear();
         channelData.clear();
+        ioData.clear();
+
         loadChannels();
 
-        // Start inbound/outbound runtimes and log names
         try {
-            InboundRuntime.get().stopAll();
             InboundRuntime.get().loadAndStart(Paths.get("conf/channels"));
-            List<String> inNames = InboundRuntime.get().getRunningNames();
-            appendLog("Inbound listeners started: " + inNames.size()
-                    + (inNames.isEmpty() ? "" : " -> " + String.join(", ", inNames)));
-
-            OutboundRuntime.get().stopAll();
             OutboundRuntime.get().loadAndStart(Paths.get("conf/channels"));
-            List<String> outNames = OutboundRuntime.get().getRunningNames();
-            appendLog("Outbound senders started: " + outNames.size()
-                    + (outNames.isEmpty() ? "" : " -> " + String.join(", ", outNames)));
+            refreshIOChannels();
+
+            appendLog("Inbound listeners started: " + InboundRuntime.get().getRunningNames().size()
+                    + (InboundRuntime.get().getRunningNames().isEmpty() ? "" : " -> " + String.join(", ", InboundRuntime.get().getRunningNames())));
+
+            appendLog("Outbound senders started: " + OutboundRuntime.get().getRunningNames().size()
+                    + (OutboundRuntime.get().getRunningNames().isEmpty() ? "" : " -> " + String.join(", ", OutboundRuntime.get().getRunningNames())));
         } catch (Exception e) {
             appendLog("ERROR: Reload failed - " + e.getMessage());
             log.log(Level.SEVERE, "Reload failed", e);
@@ -347,8 +461,10 @@ public class LocalBridgeGUI extends Application {
     private void startStatsUpdater() {
         if (statsUpdater != null) statsUpdater.shutdownNow();
         statsUpdater = Executors.newSingleThreadScheduledExecutor();
-        statsUpdater.scheduleAtFixedRate(() ->
-                Platform.runLater(this::refreshChannels), 5, 5, TimeUnit.SECONDS);
+        statsUpdater.scheduleAtFixedRate(() -> Platform.runLater(() -> {
+            refreshChannels();
+            refreshIOChannels();
+        }), 5, 5, TimeUnit.SECONDS);
     }
 
     private void refreshChannels() {
@@ -385,6 +501,29 @@ public class LocalBridgeGUI extends Application {
         }
     }
 
+    private void refreshIOChannels() {
+        List<String> inNames = InboundRuntime.get().getAllNames();
+        List<String> outNames = OutboundRuntime.get().getAllNames();
+
+        Map<String, IOChannelRow> rows = new LinkedHashMap<>();
+
+        for (String n : inNames) {
+            String status = InboundRuntime.get().isRunning(n) ? "RUNNING" : "STOPPED";
+            int proc = InboundRuntime.get().getProcessed(n);
+            int errs = InboundRuntime.get().getErrors(n);
+            rows.put("INBOUND|" + n, new IOChannelRow("INBOUND", n, status, String.valueOf(proc), String.valueOf(errs)));
+        }
+        for (String n : outNames) {
+            String status = OutboundRuntime.get().isRunning(n) ? "RUNNING" : "STOPPED";
+            int proc = OutboundRuntime.get().getProcessed(n);
+            int errs = OutboundRuntime.get().getErrors(n);
+            rows.put("OUTBOUND|" + n, new IOChannelRow("OUTBOUND", n, status, String.valueOf(proc), String.valueOf(errs)));
+        }
+
+        ioData.setAll(rows.values());
+        if (ioTable != null) ioTable.refresh();
+    }
+
     private void updateChannelStatus(String name, String status) {
         for (ChannelRow r : channelData)
             if (r.getName().equals(name))
@@ -409,9 +548,8 @@ public class LocalBridgeGUI extends Application {
         });
     }
 
-    // =========================================================================
-    // Row model
-    // =========================================================================
+    // ========= Models =========
+
     public static class ChannelRow {
         private final SimpleStringProperty name, status, type, processed, errors, inputDir, lastActivity;
 
@@ -437,5 +575,25 @@ public class LocalBridgeGUI extends Application {
         public void setProcessed(String v) { processed.set(v); }
         public void setErrors(String v) { errors.set(v); }
         public void setLastActivity(String v) { lastActivity.set(v); }
+    }
+
+    public static class IOChannelRow {
+        private final SimpleStringProperty direction, name, status, processed, errors;
+
+        public IOChannelRow(String dir, String n, String s, String p, String e) {
+            direction = new SimpleStringProperty(dir);
+            name = new SimpleStringProperty(n);
+            status = new SimpleStringProperty(s);
+            processed = new SimpleStringProperty(p);
+            errors = new SimpleStringProperty(e);
+        }
+        public String getDirection() { return direction.get(); }
+        public String getName() { return name.get(); }
+        public String getStatus() { return status.get(); }
+        public String getProcessed() { return processed.get(); }
+        public String getErrors() { return errors.get(); }
+        public void setStatus(String v) { status.set(v); }
+        public void setProcessed(String v) { processed.set(v); }
+        public void setErrors(String v) { errors.set(v); }
     }
 }
