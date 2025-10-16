@@ -1,0 +1,36 @@
+# ==============================================================================
+# conf/channels/adt-inbound.yaml
+# ADT messages from registration system - WRAPI transformation
+# ==============================================================================
+channel:
+  name: "ADT-Inbound-Transform"
+  enabled: true
+  
+  # Directories (Linux paths)
+  input-dir: "/home/willr/hl7data/adt/inbound"
+  output-dir: "/home/willr/hl7data/adt/outbound"
+  error-dir: "/home/willr/hl7data/adt/errors"
+  archive-dir: "/home/willr/hl7data/adt/archive"
+  
+  # File patterns and polling
+  input-pattern: "*.hl7"
+  poll-interval-ms: 1000
+  batch-size: 10
+  
+  # WRAPI Script Transformer
+  transformer:
+    type: "wrapi"
+    script: "conf/transformers/adt-cleanup.wrapi"
+    create-missing: true
+    validate-profile: false
+  
+  # Error handling
+  error-handling:
+    retry-count: 3
+    retry-delay-ms: 5000
+    move-to-error: true
+  
+  # Archive options
+  archive:
+    enabled: true
+    compress: true

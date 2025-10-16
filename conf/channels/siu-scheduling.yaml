@@ -1,0 +1,30 @@
+# ==============================================================================
+# conf/channels/siu-scheduling.yaml
+# Scheduling messages (SIU) - Disabled channel example
+# ==============================================================================
+channel:
+  name: "SIU-Appointment-Sync"
+  enabled: false  # Disabled for maintenance
+  
+  # Directories
+  input-dir: "/var/hl7/scheduling/inbound"
+  output-dir: "/var/hl7/scheduling/outbound"
+  error-dir: "/var/hl7/scheduling/errors"
+  archive-dir: "/var/hl7/scheduling/archive"
+  
+  # File patterns
+  input-pattern: "*.hl7"
+  poll-interval-ms: 1000
+  batch-size: 10
+  
+  # WRAPI Script Transformer
+  transformer:
+    type: "wrapi"
+    script: "conf/transformers/siu-mapping.wrapi"
+    create-missing: true
+  
+  # Archive options
+  archive:
+    enabled: true
+    compress: true
+

@@ -1,0 +1,37 @@
+# ==============================================================================
+# conf/channels/mdt-immunization.yaml
+# Immunization records (VXU) - Simple WRAPI mapping
+# ==============================================================================
+channel:
+  name: "VXU-Immunization-Export"
+  enabled: false
+  
+  # Directories
+  input-dir: "/var/hl7/immunization/inbound"
+  output-dir: "/var/hl7/immunization/outbound"
+  error-dir: "/var/hl7/immunization/errors"
+  archive-dir: "/var/hl7/immunization/archive"
+  
+  # File patterns
+  input-pattern: "*.hl7"
+  poll-interval-ms: 5000
+  batch-size: 50
+  
+  # WRAPI Script Transformer
+  transformer:
+    type: "wrapi"
+    script: "conf/transformers/vxu-standardize.wrapi"
+    create-missing: true
+    validate-profile: true
+    profile: "conf/profiles/vxu-v04.xml"
+  
+  # Error handling
+  error-handling:
+    retry-count: 3
+    retry-delay-ms: 5000
+    move-to-error: true
+  
+  # Archive options
+  archive:
+    enabled: true
+    compress: false

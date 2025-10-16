@@ -1,0 +1,25 @@
+# ==============================================================================
+# conf/transformers/oru-filter.wrapi
+# Filter and clean lab results
+# ==============================================================================
+
+# Standardize sending application
+SET MSH-3 "LAB_SYSTEM"
+SET MSH-4 "MAIN_HOSPITAL"
+
+# Copy order control to all OBR segments
+SET OBR-1 "1"
+
+# Keep only first 5 OBX results per order
+TRUNC OBX,4
+
+# Clear abnormal flags if status is preliminary
+CLEAR OBX-8
+
+# Add result processing note
+ADDSEG after OBR "NTE|1|L|Results filtered by LocalBridge"
+
+# Add custom segment for tracking
+ADDSEG "ZRS|1|FILTERED|5_MAX_RESULTS"
+
+SAVE

@@ -1,0 +1,27 @@
+channel:
+  name: ORU-Lab-Results
+  enabled: true
+
+  input-dir: /home/willr/hl7data/lab/inbound
+  output-dir: /home/willr/hl7data/lab/outbound
+  error-dir: /home/willr/hl7data/lab/errors
+  archive-dir: /home/willr/hl7data/lab/archive
+
+  input-pattern: "LAB_*.hl7"
+  poll-interval-ms: 500
+  batch-size: 20
+
+  transformer:
+    type: wrapi
+    script: conf/transformers/oru-filter.wrapi
+    create-missing: true
+    validate-profile: false
+
+  error-handling:
+    retry-count: 2
+    retry-delay-ms: 3000
+    move-to-error: true
+
+  archive:
+    enabled: true
+    compress: true

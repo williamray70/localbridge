@@ -1,0 +1,21 @@
+# conf/channels/Outbound/adt-to-remote.yaml
+- name: ADT-Out-Primary
+  enabled: true
+  host: 127.0.0.1
+  port: 2575
+  sourceDir: "/home/willr/hl7data/outbound/adt"
+  pattern: "*.hl7"
+  waitForAck: true
+  connectTimeoutMs: 5000
+  readTimeoutMs: 5000
+  pollIntervalMs: 1000
+  # errorDir is optional. If omitted, defaults to <sourceDir>/errors
+  description: "Sends ADT messages to the primary downstream system."
+
+- name: ADT-Out-Backup
+  enabled: false
+  host: 10.1.2.51
+  port: 2576
+  sourceDir: "/home/willr/hl7data/outbound/adt"
+  description: "Backup endpoint (disabled)."
+

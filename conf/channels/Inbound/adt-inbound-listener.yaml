@@ -1,0 +1,17 @@
+# conf/channels/Inbound/adt-inbound-listener.yaml
+- name: Admissions-Inbound
+  enabled: true
+  port: 2575
+  saveDir: "/home/willr/hl7data/adt/inbound"
+  filePrefix: "ADT_"
+  fileSuffix: ".hl7"
+  description: "ADT inbound feed from the registration system."
+
+- name: Orders-Inbound
+  enabled: true
+  port: 2580
+  saveDir: "/home/willr/hl7data/adt/inbound"
+  filePrefix: "ADT_"
+  fileSuffix: ".hl7"
+  description: "ORM inbound from CPOE."
+

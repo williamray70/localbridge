@@ -1,0 +1,44 @@
+# ==============================================================================
+# conf/channels/orm-orders.yaml
+# Order messages (ORM) - Java transformer for complex logic
+# ==============================================================================
+channel:
+  name: "ORM-Order-Processing"
+  enabled: false
+  
+  # Directories
+  input-dir: "/var/hl7/orders/inbound"
+  output-dir: "/var/hl7/orders/outbound"
+  error-dir: "/var/hl7/orders/errors"
+  archive-dir: "/var/hl7/orders/archive"
+  
+  # File patterns
+  input-pattern: "ORDER_*.hl7"
+  poll-interval-ms: 2000
+  batch-size: 5
+  
+  # Java Transformer (for complex business logic)
+  transformer:
+    type: "java"
+    class: "com.example.transformers.OrderTransformer"
+    create-missing: true
+    validate-profile: false
+    
+    # Custom config passed to transformer
+    facilityCode: "MAIN_HOSPITAL"
+    priorityMapping:
+      STAT: "1"
+      URGENT: "2"
+      ROUTINE: "3"
+  
+  # Error handling
+  error-handling:
+    retry-count: 5
+    retry-delay-ms: 10000
+    move-to-error: true
+  
+  # Archive options
+  archive:
+    enabled: true
+    compress: true
+

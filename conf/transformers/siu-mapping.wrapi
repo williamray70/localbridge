@@ -1,0 +1,25 @@
+# ==============================================================================
+# conf/transformers/siu-mapping.wrapi
+# Map scheduling appointments to standard format
+# ==============================================================================
+
+# Standardize facility
+SET MSH-4 "SCHEDULING_SYSTEM"
+
+# Clear patient insurance (handled separately)
+DELSEG IN1
+
+# Copy appointment reason to notes
+COPY SCH-7 -> NTE-3
+
+# Remove all but primary resource
+TRUNCSEG RGS,0
+TRUNCSEG AIS,0
+
+# Add scheduling metadata
+ADDSEG after SCH "ZSC|1|SYNCHRONIZED"
+
+SAVE
+
+Scheduling integration v1.5
+Maps to downstream EMR scheduling system

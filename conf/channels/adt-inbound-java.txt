@@ -1,0 +1,26 @@
+channel:
+  name: ADT-Inbound-Transform
+  enabled: true
+
+  input-dir: /home/willr/hl7data/adt/inbound
+  output-dir: /home/willr/hl7data/adt/outbound
+  error-dir: /home/willr/hl7data/adt/errors
+  archive-dir: /home/willr/hl7data/adt/archive
+
+  input-pattern: "*.hl7"
+  poll-interval-ms: 1000
+  batch-size: 10
+
+  transformer:
+    type: java
+    class: com.localbridge.transformer.AdtCleanupJavaTransformer
+
+  error-handling:
+    retry-count: 3
+    retry-delay-ms: 5000
+    move-to-error: true
+
+  archive:
+    enabled: true
+    compress: true
+

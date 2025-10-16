@@ -1,0 +1,26 @@
+# ==============================================================================
+# conf/transformers/vxu-standardize.wrapi
+# Standardize immunization records for state reporting
+# ==============================================================================
+
+# Set message type explicitly
+SET MSH-9-1 "VXU"
+SET MSH-9-2 "V04"
+
+# Standardize sending facility
+SET MSH-4 "CLINIC_001"
+
+# Copy patient name to all RXA segments for reference
+COPY PID-5-1 -> RXA-10
+
+# Remove all insurance information (not needed for state reporting)
+DELSEG IN1
+
+# Keep only administered vaccines (remove historical/refused)
+# Note: Actual filtering would need Java transformer for conditional logic
+
+# Add state reporting identifier
+ADDSEG after PID "ZIR|1|STATE_REPORT|COMPLIANT"
+
+SAVE
+

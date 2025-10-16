@@ -1,0 +1,56 @@
+[[1;33mWARNING[m] 
+[[1;33mWARNING[m] Some problems were encountered while building the effective settings
+[[1;33mWARNING[m] Unrecognised tag: 'blocked' (position: START_TAG seen ...</url>\n      <blocked>... @164:16)  @ /usr/share/maven/conf/settings.xml, line 164, column 16
+[[1;33mWARNING[m] 
+[[1;34mINFO[m] Scanning for projects...
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--------------------< [0;36mcom.localbridge:localbridge[0;1m >---------------------[m
+[[1;34mINFO[m] [1mBuilding localbridge 1.0.0[m
+[[1;34mINFO[m] [1m--------------------------------[ jar ]---------------------------------[m
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--- [0;32mexec-maven-plugin:3.6.1:java[m [1m(default-cli)[m @ [36mlocalbridge[0;1m ---[m
+Oct 10, 2025 12:24:36 PM com.sun.javafx.application.PlatformImpl startup
+WARNING: Unsupported JavaFX configuration: classes were loaded from 'unnamed module @5ffbec9'
+12:24:37.046 [JavaFX Application Thread] DEBUG ca.uhn.hl7v2.parser.DefaultModelClassFactory -- No user-defined packages for version 2.1
+12:24:37.048 [JavaFX Application Thread] DEBUG ca.uhn.hl7v2.parser.DefaultModelClassFactory -- No user-defined packages for version 2.2
+12:24:37.048 [JavaFX Application Thread] DEBUG ca.uhn.hl7v2.parser.DefaultModelClassFactory -- No user-defined packages for version 2.3
+12:24:37.048 [JavaFX Application Thread] DEBUG ca.uhn.hl7v2.parser.DefaultModelClassFactory -- No user-defined packages for version 2.3.1
+12:24:37.048 [JavaFX Application Thread] DEBUG ca.uhn.hl7v2.parser.DefaultModelClassFactory -- No user-defined packages for version 2.4
+12:24:37.048 [JavaFX Application Thread] DEBUG ca.uhn.hl7v2.parser.DefaultModelClassFactory -- No user-defined packages for version 2.5
+12:24:37.048 [JavaFX Application Thread] DEBUG ca.uhn.hl7v2.parser.DefaultModelClassFactory -- No user-defined packages for version 2.5.1
+12:24:37.048 [JavaFX Application Thread] DEBUG ca.uhn.hl7v2.parser.DefaultModelClassFactory -- No user-defined packages for version 2.6
+12:24:37.048 [JavaFX Application Thread] DEBUG ca.uhn.hl7v2.parser.DefaultModelClassFactory -- No user-defined packages for version 2.7
+12:24:37.048 [JavaFX Application Thread] DEBUG ca.uhn.hl7v2.parser.DefaultModelClassFactory -- No user-defined packages for version 2.7.1
+12:24:37.049 [JavaFX Application Thread] DEBUG ca.uhn.hl7v2.parser.DefaultModelClassFactory -- No user-defined packages for version 2.8
+12:24:37.049 [JavaFX Application Thread] DEBUG ca.uhn.hl7v2.parser.DefaultModelClassFactory -- No user-defined packages for version 2.8.1
+12:24:37.050 [JavaFX Application Thread] INFO ca.uhn.hl7v2.util.Home -- hapi.home is set to /home/willr/localbridge/.
+12:24:37.055 [JavaFX Application Thread] INFO ca.uhn.hl7v2.VersionLogger -- HAPI version is: 2.5
+12:24:37.056 [JavaFX Application Thread] INFO ca.uhn.hl7v2.VersionLogger -- Default Structure libraries found for HL7 versions 2.5, 
+12:24:37.058 [JavaFX Application Thread] DEBUG ca.uhn.hl7v2.conf.store.FileProfileStore -- Profile store directory doesn't exist: /home/willr/localbridge/./profiles
+12:24:37.067 [JavaFX Application Thread] ERROR com.localbridge.gui.LocalBridgeGUI -- Failed to load channel: adt-inbound.yaml
+java.lang.ClassNotFoundException: com.localbridge.transformer.AdtCleanupJavaTransformer
+	at org.codehaus.mojo.exec.URLClassLoaderBuilder$ExecJavaClassLoader.loadClass(URLClassLoaderBuilder.java:211)
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:525)
+	at java.base/java.lang.Class.forName0(Native Method)
+	at java.base/java.lang.Class.forName(Class.java:375)
+	at com.localbridge.engine.ChannelEngine.createTransformer(ChannelEngine.java:53)
+	at com.localbridge.engine.ChannelEngine.<init>(ChannelEngine.java:36)
+	at com.localbridge.gui.LocalBridgeGUI.loadChannels(LocalBridgeGUI.java:274)
+	at com.localbridge.gui.LocalBridgeGUI.start(LocalBridgeGUI.java:85)
+	at com.sun.javafx.application.LauncherImpl.lambda$launchApplication1$9(LauncherImpl.java:847)
+	at com.sun.javafx.application.PlatformImpl.lambda$runAndWait$12(PlatformImpl.java:484)
+	at com.sun.javafx.application.PlatformImpl.lambda$runLater$10(PlatformImpl.java:457)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:399)
+	at com.sun.javafx.application.PlatformImpl.lambda$runLater$11(PlatformImpl.java:456)
+	at com.sun.glass.ui.InvokeLaterDispatcher$Future.run(InvokeLaterDispatcher.java:96)
+	at com.sun.glass.ui.gtk.GtkApplication._runLoop(Native Method)
+	at com.sun.glass.ui.gtk.GtkApplication.lambda$runLoop$11(GtkApplication.java:290)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+12:58:46.378 [JavaFX Application Thread] INFO com.localbridge.engine.ChannelEngine -- Stopping channel: ORU-Lab-Results
+12:58:46.378 [JavaFX Application Thread] INFO com.localbridge.engine.ChannelEngine -- Channel stopped: ORU-Lab-Results
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m
+[[1;34mINFO[m] [1;32mBUILD SUCCESS[m
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m
+[[1;34mINFO[m] Total time:  34:10 min
+[[1;34mINFO[m] Finished at: 2025-10-10T12:58:46-05:00
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m

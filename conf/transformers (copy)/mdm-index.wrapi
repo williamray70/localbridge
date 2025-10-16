@@ -1,0 +1,27 @@
+# ==============================================================================
+# conf/transformers/mdm-index.wrapi
+# Index medical documents and add metadata
+# ==============================================================================
+
+# Standardize message headers
+SET MSH-3 "DOCUMENT_SYSTEM"
+SET MSH-4 "MAIN_HOSPITAL"
+
+# Copy document type to custom segment
+COPY TXA-2 -> ZDC-1
+
+# Clear embedded document content (stored separately)
+CLEAR OBX-5
+
+# Add indexing timestamp
+ADDSEG after TXA "ZDX|1|INDEXED"
+
+# Add document routing information
+ADDSEG "ZRT|1|ARCHIVE|INDEXED"
+
+SAVE
+
+# Document Management Notes:
+# Large documents are extracted and stored in document management system
+# This transformation creates index records only
+# Content stored in: /mnt/docstore/

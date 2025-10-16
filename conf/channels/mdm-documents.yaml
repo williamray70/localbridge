@@ -1,0 +1,36 @@
+# ==============================================================================
+# conf/channels/mdm-documents.yaml
+# Medical document messages (MDM) - Fast processing
+# ==============================================================================
+channel:
+  name: "MDM-Document-Archive"
+  enabled: false
+  
+  # Directories
+  input-dir: "/var/hl7/documents/inbound"
+  output-dir: "/var/hl7/documents/outbound"
+  error-dir: "/var/hl7/documents/errors"
+  archive-dir: "/var/hl7/documents/archive"
+  
+  # File patterns
+  input-pattern: "MDM_*.hl7"
+  poll-interval-ms: 500
+  batch-size: 30
+  
+  # WRAPI Script Transformer
+  transformer:
+    type: "wrapi"
+    script: "conf/transformers/mdm-index.wrapi"
+    create-missing: false
+    validate-profile: false
+  
+  # Error handling
+  error-handling:
+    retry-count: 1
+    retry-delay-ms: 1000
+    move-to-error: true
+  
+  # Archive options
+  archive:
+    enabled: true
+    compress: true
